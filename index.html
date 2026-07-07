@@ -15088,6 +15088,7 @@ var __MegaIAApp = (() => {
   // src/app.jsx
   var app_exports = {};
   __export(app_exports, {
+    calculateRankings: () => calculateRankings,
     calculateSeniorityInfo: () => calculateSeniorityInfo,
     deriveRates: () => deriveRates,
     generateMockAplusData: () => generateMockAplusData,
@@ -94532,15 +94533,14 @@ This typically indicates that your device does not have a healthy Internet conne
     const rankedItems = items.map((item) => ({ ...item, ranks: {} }));
     const count = rankedItems.length;
     RANK_METRICS.forEach((metric) => {
-      const sorted = [...rankedItems].sort((a, b) => (b.stats[metric] || 0) - (a.stats[metric] || 0));
-      sorted.forEach((item, index) => {
-        const originalItem = rankedItems.find((ri) => ri.name === item.name && ri.branch === item.branch);
-        if (!originalItem) return;
-        if (index === 0) originalItem.ranks[metric] = "top1";
-        else if (index === 1) originalItem.ranks[metric] = "top2";
-        else if (index === 2) originalItem.ranks[metric] = "top3";
+      const order = rankedItems.map((it2, idx) => ({ idx, v: it2.stats && it2.stats[metric] || 0 })).sort((a, b) => b.v - a.v);
+      order.forEach((o, index) => {
+        const item = rankedItems[o.idx];
+        if (index === 0) item.ranks[metric] = "top1";
+        else if (index === 1) item.ranks[metric] = "top2";
+        else if (index === 2) item.ranks[metric] = "top3";
         if (bottomThreshold > 0 && index >= count - bottomThreshold) {
-          if (!originalItem.ranks[metric]) originalItem.ranks[metric] = "bottom";
+          if (!item.ranks[metric]) item.ranks[metric] = "bottom";
         }
       });
     });
