@@ -95095,13 +95095,15 @@ This typically indicates that your device does not have a healthy Internet conne
         name: String(row["\u59D3\u540D"] || "").trim(),
         role: String(row["\u8077\u7A31"] || "").trim(),
         branch: String(row["\u5206\u9662"] || "").trim(),
-        totalVisits: cleanNumber(row["\u7E3D\u670D\u52D9\u5BA2\u6578"]),
-        newVisits: cleanNumber(row["\u7E3D\u65B0\u5BA2\u6578"]),
-        newDeals: cleanNumber(row["\u7E3D\u65B0\u5BA2\u6210\u4EA4\u6578"]),
-        newAmount: cleanNumber(row["\u5E74\u5EA6\u65B0\u5BA2\u6210\u4EA4\u91D1\u984D"]),
-        repurchaseCnt: cleanNumber(row["\u7E3D\u7E8C\u8CFC\u4EBA\u6578"]),
-        twoYearNewDeals: cleanNumber(row["\u5169\u5E74\u7E3D\u65B0\u5BA2\u6210\u4EA4\u4EBA\u6578"]),
-        referralCnt: cleanNumber(row["\u7E3D\u8F49\u4ECB\u4EBA\u6578"])
+        // 人數/金額類欄位一律取整：來源儲存格常為公式反推，會殘留浮點誤差
+        // （如「兩年總新客成交人數」實際儲存 203.0075...，顯示格式才是整數）
+        totalVisits: Math.round(cleanNumber(row["\u7E3D\u670D\u52D9\u5BA2\u6578"])),
+        newVisits: Math.round(cleanNumber(row["\u7E3D\u65B0\u5BA2\u6578"])),
+        newDeals: Math.round(cleanNumber(row["\u7E3D\u65B0\u5BA2\u6210\u4EA4\u6578"])),
+        newAmount: Math.round(cleanNumber(row["\u5E74\u5EA6\u65B0\u5BA2\u6210\u4EA4\u91D1\u984D"])),
+        repurchaseCnt: Math.round(cleanNumber(row["\u7E3D\u7E8C\u8CFC\u4EBA\u6578"])),
+        twoYearNewDeals: Math.round(cleanNumber(row["\u5169\u5E74\u7E3D\u65B0\u5BA2\u6210\u4EA4\u4EBA\u6578"])),
+        referralCnt: Math.round(cleanNumber(row["\u7E3D\u8F49\u4ECB\u4EBA\u6578"]))
       };
     }).filter((item) => item.name && !item.role.includes("\u8B77\u7406") && !excludedNames.includes(item.name));
     if (parsedList.length === 0) return { list: [], globals: null, cutoffs: null };
@@ -95208,6 +95210,7 @@ This typically indicates that your device does not have a healthy Internet conne
     const [simReferralStr, setSimReferralStr] = useState(String(item.referralCnt));
     const { avgDealRate, avgTicket, avgRepurchaseRate, avgReferralRate } = globals;
     const calcSim = () => {
+      var _a, _b;
       const dVal = simDealsStr === "" ? 0 : Number(simDealsStr);
       const tVal = simTicketStr === "" ? 0 : Number(simTicketStr);
       const repVal = simRepurchaseStr === "" ? 0 : Number(simRepurchaseStr);
@@ -95222,22 +95225,23 @@ This typically indicates that your device does not have a healthy Internet conne
       const referralIdx = avgReferralRate ? myReferralRate / avgReferralRate : myReferralRate ? 1 : 0;
       const score = 100 * Math.pow(dealIdx, 0.3) * Math.pow(ticketIdx, 0.2) * Math.pow(repurchaseIdx, 0.35) * Math.pow(referralIdx, 0.15);
       const finalScore = isNaN(score) || !isFinite(score) ? 0 : score;
+      const goldLine = (_a = cutoffs.goldBoundary) != null ? _a : cutoffs.gold;
+      const targetLine = (_b = cutoffs.targetBoundary) != null ? _b : cutoffs.target;
       let tier = "near";
       let label = "\u9081\u5411A+\u5340\u{1F331}";
       let level = 1;
-      if (finalScore >= cutoffs.gold) {
+      if (finalScore >= goldLine) {
         tier = "gold";
         label = "A+\u91D1\u724C\u5340\u{1F947}";
         level = 3;
-      } else if (finalScore >= cutoffs.target) {
+      } else if (finalScore >= targetLine) {
         tier = "target";
         label = "A+\u9054\u6A19\u5340\u{1F948}";
         level = 2;
       }
       return { score: finalScore, tier, label, level, rates: { deal: myDealRate, ticket: myTicket, rep: myRepurchaseRate, ref: myReferralRate } };
     };
-    const levelFromScore = (sc) => sc >= cutoffs.gold ? 3 : sc >= cutoffs.target ? 2 : 1;
-    const originalLevel = levelFromScore(item.score);
+    const originalLevel = item.tierKey === "gold" ? 3 : item.tierKey === "target" ? 2 : 1;
     const simResult = calcSim();
     const levelDiff = simResult.level - originalLevel;
     let feedbackMsg = "";
