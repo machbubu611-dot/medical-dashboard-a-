@@ -95105,7 +95105,11 @@ This typically indicates that your device does not have a healthy Internet conne
         twoYearNewDeals: Math.round(cleanNumber(row["\u5169\u5E74\u7E3D\u65B0\u5BA2\u6210\u4EA4\u4EBA\u6578"])),
         referralCnt: Math.round(cleanNumber(row["\u7E3D\u8F49\u4ECB\u4EBA\u6578"]))
       };
-    }).filter((item) => item.name && !item.role.includes("\u8B77\u7406") && !excludedNames.includes(item.name));
+    }).filter((item) => {
+      if (!item.name || excludedNames.includes(item.name)) return false;
+      const isPureNursing = item.role.includes("\u8B77\u7406") && !item.role.includes("\u8AEE\u8A62");
+      return !isPureNursing;
+    });
     if (parsedList.length === 0) return { list: [], globals: null, cutoffs: null };
     let sumNewDeals = 0, sumNewVisits = 0, sumNewAmount = 0, sumNewDealsForTicket = 0;
     let sumRepurchase = 0, sumTwoYearDeals = 0, sumReferral = 0, sumTotalVisits = 0;
