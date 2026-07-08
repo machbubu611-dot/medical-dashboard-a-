@@ -95492,11 +95492,25 @@ This typically indicates that your device does not have a healthy Internet conne
     const capturePage = async () => {
       if (!mainRef.current || isCapturing) return;
       setIsCapturing(true);
+      const prevScroll = { x: window.scrollX, y: window.scrollY };
       try {
         const el = mainRef.current;
+        window.scrollTo(0, 0);
+        await new Promise((r) => setTimeout(r, 150));
+        const fullW = el.scrollWidth;
         const fullH = el.scrollHeight;
         const scale = Math.max(1, Math.min(2, Math.floor(3e4 / Math.max(fullH, 1) * 10) / 10));
-        const canvas = await (0, import_html2canvas.default)(el, { scale, backgroundColor: "#f8fafc", useCORS: true, windowWidth: el.scrollWidth });
+        const canvas = await (0, import_html2canvas.default)(el, {
+          scale,
+          backgroundColor: "#f8fafc",
+          useCORS: true,
+          width: fullW,
+          height: fullH,
+          windowWidth: fullW,
+          windowHeight: fullH,
+          scrollX: 0,
+          scrollY: 0
+        });
         const pageName = activeBranch.isAplus ? "A+\u91D1\u724C\u4FE1\u4EFB\u699C" : activeBranch.branchName;
         const periodShort = activeBranch.isAplus ? "" : `_${String(selectedPeriod).replace(/^\d{4}年(?=\d)/, "").replace(/^\d{4}(?=年度)/, "") || selectedPeriod}`;
         const blob = await new Promise((res) => canvas.toBlob(res, "image/png"));
@@ -95510,6 +95524,7 @@ This typically indicates that your device does not have a healthy Internet conne
       } catch (err) {
         alert("\u9801\u9762\u622A\u5716\u5931\u6557: " + err.message);
       }
+      window.scrollTo(prevScroll.x, prevScroll.y);
       setIsCapturing(false);
     };
     const exportShareFile = () => {
