@@ -93665,32 +93665,6 @@ This typically indicates that your device does not have a healthy Internet conne
       i.gc(), e.asyncQueue.enqueueAndForget((async () => __PRIVATE_eventManagerUnlisten(await __PRIVATE_getEventManager(e), s)));
     };
   }
-  function __PRIVATE_firestoreClientGetDocumentViaSnapshotListener(e, t, n = {}) {
-    const r = new __PRIVATE_Deferred();
-    return e.asyncQueue.enqueueAndForget((async () => (function __PRIVATE_readDocumentViaSnapshotListener(e2, t2, n2, r2, i) {
-      const s = new __PRIVATE_AsyncObserver({
-        next: (o) => {
-          s.gc(), t2.enqueueAndForget((() => __PRIVATE_eventManagerUnlisten(e2, _)));
-          const a = o.docs.has(n2);
-          !a && o.fromCache ? (
-            // TODO(dimond): If we're online and the document doesn't
-            // exist then we resolve with a doc.exists set to false. If
-            // we're offline however, we reject the Promise in this
-            // case. Two options: 1) Cache the negative response from
-            // the server so we can deliver that even when you're
-            // offline 2) Actually reject the Promise in the online case
-            // if the document doesn't exist.
-            i.reject(new FirestoreError(D.UNAVAILABLE, "Failed to get document because the client is offline."))
-          ) : a && o.fromCache && r2 && "server" === r2.source ? i.reject(new FirestoreError(D.UNAVAILABLE, 'Failed to get document from server. (However, this document does exist in the local cache. Run again without setting source to "server" to retrieve the cached document.)')) : i.resolve(o);
-        },
-        error: (e3) => i.reject(e3)
-      }), _ = new __PRIVATE_QueryListener(__PRIVATE_newQueryForPath(n2.path), s, {
-        includeMetadataChanges: true,
-        waitForSyncWhenOnline: true
-      });
-      return __PRIVATE_eventManagerListen(e2, _);
-    })(await __PRIVATE_getEventManager(e), e.asyncQueue, t, n, r))), r.promise;
-  }
   function __PRIVATE_firestoreClientWrite(e, t) {
     const n = new __PRIVATE_Deferred();
     return e.asyncQueue.enqueueAndForget((async () => __PRIVATE_syncEngineWrite(await __PRIVATE_getSyncEngine(e), t, n))), n.promise;
@@ -94330,11 +94304,6 @@ This typically indicates that your device does not have a healthy Internet conne
     bundleName: property("string"),
     bundle: property("string")
   };
-  function getDoc(t) {
-    t = __PRIVATE_cast(t, DocumentReference);
-    const e = __PRIVATE_cast(t.firestore, Firestore), n = ensureFirestoreConfigured(e);
-    return __PRIVATE_firestoreClientGetDocumentViaSnapshotListener(n, t._key).then(((n2) => __PRIVATE_convertToDocSnapshot(e, t, n2)));
-  }
   function setDoc(t, e, n) {
     t = __PRIVATE_cast(t, DocumentReference);
     const r = __PRIVATE_cast(t.firestore, Firestore), s = __PRIVATE_applyFirestoreDataConverter(t.converter, e, n), o = __PRIVATE_newUserDataReader(r);
@@ -95598,8 +95567,26 @@ This typically indicates that your device does not have a healthy Internet conne
         if (ps.length) setSelectedPeriod(ps[ps.length - 1]);
         if (embedded.aplusRawData) setAplusRawData(embedded.aplusRawData);
       } else {
-        setAplusRawData(generateMockAplusData());
-        setParsedData(generateMockData());
+        let localDash = null, localAplus = null;
+        try {
+          const ls = localStorage.getItem("megaia_dashboard_v1");
+          if (ls) {
+            const d = JSON.parse(ls);
+            if (d && d.branchData && d.staffData) localDash = d;
+          }
+          const la = localStorage.getItem("megaia_aplus_v1");
+          if (la) {
+            const a = JSON.parse(la);
+            if (Array.isArray(a) && a.length) localAplus = a;
+          }
+        } catch (e) {
+        }
+        if (localDash) {
+          setParsedData(localDash);
+          setAvailablePeriods(localDash.periods || []);
+          if ((localDash.periods || []).length) setSelectedPeriod(localDash.periods[localDash.periods.length - 1]);
+        } else setParsedData(generateMockData());
+        setAplusRawData(localAplus || generateMockAplusData());
       }
       if (fbAuth) {
         const initAuth = async () => {
@@ -95663,8 +95650,18 @@ This typically indicates that your device does not have a healthy Internet conne
               setParsedData(data);
               setAvailablePeriods(data.periods);
               if (!data.periods.includes(selectedPeriod)) setSelectedPeriod(data.periods[data.periods.length - 1]);
+              try {
+                localStorage.setItem("megaia_dashboard_v1", JSON.stringify({ branchData: data.branchData, staffData: data.staffData, periods: data.periods }));
+              } catch (e) {
+              }
             }
-            if (data.aplusRawData) setAplusRawData(data.aplusRawData);
+            if (data.aplusRawData) {
+              setAplusRawData(data.aplusRawData);
+              try {
+                localStorage.setItem("megaia_aplus_v1", JSON.stringify(data.aplusRawData));
+              } catch (e) {
+              }
+            }
             if (data.isBlindMode !== void 0) setIsBlindMode(data.isBlindMode);
           }
         }, (err) => console.error("Snapshot error:", err));
@@ -95776,14 +95773,14 @@ This typically indicates that your device does not have a healthy Internet conne
             setAvailablePeriods(branchParsed.periods);
             setSelectedPeriod(branchParsed.periods[branchParsed.periods.length - 1]);
             setActiveBranchIndex(0);
+            try {
+              localStorage.setItem("megaia_dashboard_v1", JSON.stringify(newData));
+            } catch (e2) {
+            }
             if (user && fbDb) {
               setIsSaving(true);
               try {
-                const docRef = getSaveRef();
-                const snap = await getDoc(docRef);
-                let uploadData = JSON.parse(JSON.stringify(newData));
-                if (snap.exists() && snap.data().aplusRawData) uploadData.aplusRawData = snap.data().aplusRawData;
-                await setDoc(docRef, uploadData);
+                await setDoc(getSaveRef(), JSON.parse(JSON.stringify(newData)), { merge: true });
               } catch (err) {
                 console.error(err);
               } finally {
@@ -95808,6 +95805,10 @@ This typically indicates that your device does not have a healthy Internet conne
           const dataStr = utils.sheet_to_json(wb.Sheets[wb.SheetNames[0]]);
           if (dataStr && dataStr.length > 0) {
             setAplusRawData(dataStr);
+            try {
+              localStorage.setItem("megaia_aplus_v1", JSON.stringify(dataStr));
+            } catch (e2) {
+            }
             const targetIdx = activeData.findIndex((d) => d.isAplus);
             if (targetIdx !== -1) setActiveBranchIndex(targetIdx);
             if (user && fbDb) {
