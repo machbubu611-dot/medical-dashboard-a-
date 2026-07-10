@@ -95118,7 +95118,7 @@ This typically indicates that your device does not have a healthy Internet conne
       const referralIdx = avgReferralRate ? myReferralRate / avgReferralRate : myReferralRate ? 1 : 0;
       const credFactor = avgDealRate ? Math.min(1, myDealRate / avgDealRate) : myDealRate ? 1 : 0;
       const effTicketIdx = ticketIdx * credFactor;
-      const score = 100 * Math.pow(dealIdx, 0.3) * Math.pow(effTicketIdx, 0.2) * Math.pow(repurchaseIdx, 0.35) * Math.pow(referralIdx, 0.15);
+      const score = 100 * Math.pow(dealIdx, 0.3) * Math.pow(effTicketIdx, 0.15) * Math.pow(repurchaseIdx, 0.4) * Math.pow(referralIdx, 0.15);
       return {
         ...item,
         myDealRate,
@@ -95169,7 +95169,7 @@ This typically indicates that your device does not have a healthy Internet conne
       const mTicket = median(group.map((i) => i.effTicketIdx));
       const mRepurchase = median(group.map((i) => i.repurchaseIdx));
       const mReferral = median(group.map((i) => i.referralIdx));
-      const s = 100 * Math.pow(mDeal, 0.3) * Math.pow(mTicket, 0.2) * Math.pow(mRepurchase, 0.35) * Math.pow(mReferral, 0.15);
+      const s = 100 * Math.pow(mDeal, 0.3) * Math.pow(mTicket, 0.15) * Math.pow(mRepurchase, 0.4) * Math.pow(mReferral, 0.15);
       return isNaN(s) || !isFinite(s) ? 0 : s;
     };
     const goldGroup = finalValid.filter((i) => i.tierKey === "gold");
@@ -95310,7 +95310,7 @@ This typically indicates that your device does not have a healthy Internet conne
       const referralIdx = avgReferralRate ? myReferralRate / avgReferralRate : myReferralRate ? 1 : 0;
       const credFactor = avgDealRate ? Math.min(1, myDealRate / avgDealRate) : myDealRate ? 1 : 0;
       const effTicketIdx = ticketIdx * credFactor;
-      const score = 100 * Math.pow(dealIdx, 0.3) * Math.pow(effTicketIdx, 0.2) * Math.pow(repurchaseIdx, 0.35) * Math.pow(referralIdx, 0.15);
+      const score = 100 * Math.pow(dealIdx, 0.3) * Math.pow(effTicketIdx, 0.15) * Math.pow(repurchaseIdx, 0.4) * Math.pow(referralIdx, 0.15);
       const finalScore = isNaN(score) || !isFinite(score) ? 0 : score;
       const goldLine = (_a = cutoffs.goldBoundary) != null ? _a : cutoffs.gold;
       const targetLine = (_b = cutoffs.targetBoundary) != null ? _b : cutoffs.target;
