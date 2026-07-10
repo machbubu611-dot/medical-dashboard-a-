@@ -95602,6 +95602,7 @@ This typically indicates that your device does not have a healthy Internet conne
       }
     }, []);
     const mainRef = useRef(null);
+    const aplusRepairedRef = useRef(false);
     const [isCapturing, setIsCapturing] = useState(false);
     const capturePage = async () => {
       if (!mainRef.current || isCapturing) return;
@@ -95659,6 +95660,18 @@ This typically indicates that your device does not have a healthy Internet conne
               setAplusRawData(data.aplusRawData);
               try {
                 localStorage.setItem("megaia_aplus_v1", JSON.stringify(data.aplusRawData));
+              } catch (e) {
+              }
+            } else if (!aplusRepairedRef.current) {
+              aplusRepairedRef.current = true;
+              try {
+                const la = localStorage.getItem("megaia_aplus_v1");
+                if (la) {
+                  const backup = JSON.parse(la);
+                  if (Array.isArray(backup) && backup.length) {
+                    setDoc(getSaveRef(), { aplusRawData: backup }, { merge: true }).then(() => console.log("A+ \u96F2\u7AEF\u8CC7\u6599\u5DF2\u7531\u672C\u6A5F\u5099\u63F4\u81EA\u52D5\u4FEE\u5FA9")).catch((err) => console.error("A+ \u81EA\u52D5\u4FEE\u5FA9\u5931\u6557:", err));
+                  }
+                }
               } catch (e) {
               }
             }
@@ -95783,6 +95796,7 @@ This typically indicates that your device does not have a healthy Internet conne
                 await setDoc(getSaveRef(), JSON.parse(JSON.stringify(newData)), { merge: true });
               } catch (err) {
                 console.error(err);
+                alert("\u26A0\uFE0F \u71DF\u904B\u8868\u300C\u96F2\u7AEF\u5132\u5B58\u5931\u6557\u300D\uFF1A" + (err.message || err) + "\n\n\u8CC7\u6599\u5DF2\u4FDD\u5B58\u5728\u6B64\u88DD\u7F6E\uFF08\u672C\u6A5F\u5099\u63F4\uFF09\uFF1B\u5176\u4ED6\u88DD\u7F6E\u66AB\u6642\u770B\u4E0D\u5230\u6700\u65B0\u8CC7\u6599\u3002");
               } finally {
                 setIsSaving(false);
               }
@@ -95814,12 +95828,16 @@ This typically indicates that your device does not have a healthy Internet conne
             if (user && fbDb) {
               setIsSaving(true);
               try {
-                await setDoc(getSaveRef(), { aplusRawData: dataStr }, { merge: true });
+                const clean = JSON.parse(JSON.stringify(dataStr));
+                await setDoc(getSaveRef(), { aplusRawData: clean }, { merge: true });
               } catch (err) {
                 console.error(err);
+                alert("\u26A0\uFE0F A+ \u699C\u55AE\u300C\u96F2\u7AEF\u5132\u5B58\u5931\u6557\u300D\uFF1A" + (err.message || err) + "\n\n\u8CC7\u6599\u5DF2\u4FDD\u5B58\u5728\u6B64\u88DD\u7F6E\uFF08\u672C\u6A5F\u5099\u63F4\uFF09\uFF0C\u6B64\u700F\u89BD\u5668\u91CD\u958B\u4ECD\u53EF\u770B\u5230\uFF1B\u4F46\u5176\u4ED6\u88DD\u7F6E\u66AB\u6642\u770B\u4E0D\u5230\u6700\u65B0\u699C\u55AE\u3002\u8ACB\u7A0D\u5F8C\u5728\u6B64\u88DD\u7F6E\u91CD\u65B0\u958B\u555F\u672C\u9801\uFF0C\u7CFB\u7D71\u6703\u81EA\u52D5\u88DC\u5BEB\u96F2\u7AEF\u3002");
               } finally {
                 setIsSaving(false);
               }
+            } else if (fbDb) {
+              alert("\u26A0\uFE0F \u96F2\u7AEF\u5C1A\u672A\u9023\u7DDA\u5B8C\u6210\uFF0CA+ \u699C\u55AE\u76EE\u524D\u50C5\u5B58\u65BC\u6B64\u88DD\u7F6E\u3002\u8ACB\u7A0D\u5019\u5E7E\u79D2\u5F85\u53F3\u4E0A\u89D2\u986F\u793A\u300C\u96F2\u7AEF\u5DF2\u9023\u7DDA\u300D\u5F8C\u91CD\u65B0\u532F\u5165\u4E00\u6B21\u3002");
             }
           } else throw new Error("\u627E\u4E0D\u5230\u6709\u6548\u7684\u8CC7\u6599");
         } catch (err) {
