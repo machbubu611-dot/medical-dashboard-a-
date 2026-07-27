@@ -95009,21 +95009,44 @@ This typically indicates that your device does not have a healthy Internet conne
   };
   var YtdGapChart = ({ parsedData }) => {
     const exportRef = useRef(null);
+    const h = import_react.default.createElement;
+    const [rangeStart, setRangeStart] = useState(null);
+    const [rangeEnd, setRangeEnd] = useState(null);
     if (!parsedData || !parsedData.branchData) return null;
     const { branches, branchOrder } = parsedData.branchData;
     const bNames = branchOrder && branchOrder.length > 0 ? branchOrder : Object.keys(branches);
+    const monthOf = (p) => { const m = String(p).match(/(?:^|\u5E74)(\d{1,2})\u6708$/); return m ? parseInt(m[1], 10) : null; };
+    const monthSet = {};
+    bNames.forEach((b) => Object.keys(branches[b] || {}).forEach((p) => { const n = monthOf(p); if (n) monthSet[n] = true; }));
+    const months = Object.keys(monthSet).map(Number).sort((a, b) => a - b);
+    if (!months.length) return null;
+    const firstM = months[0], lastM = months[months.length - 1];
+    const sM = months.indexOf(rangeStart) >= 0 ? rangeStart : firstM;
+    const eM = months.indexOf(rangeEnd) >= 0 ? rangeEnd : lastM;
+    const lo = Math.min(sM, eM), hi = Math.max(sM, eM);
+    const isFullRange = lo === firstM && hi === lastM;
+    const rangeLabel = lo === hi ? `${lo}\u6708` : `${lo}-${hi}\u6708`;
+    const presets = [];
+    if (months.indexOf(1) >= 0) {
+      if (lastM >= 3) presets.push({ label: "1-3\u6708", lo: 1, hi: 3 });
+      if (lastM >= 6) presets.push({ label: "1-6\u6708", lo: 1, hi: 6 });
+      if (lastM >= 9) presets.push({ label: "1-9\u6708", lo: 1, hi: 9 });
+      if (lastM >= 12) presets.push({ label: "1-12\u6708", lo: 1, hi: 12 });
+    }
+    presets.push({ label: "\u5168\u90E8", lo: firstM, hi: lastM });
     const ytdData = bNames.map((bName) => {
-      let ytdGoal = 0, monthSum = 0;
-      let annualKey = null;
+      let ytdGoal = 0, monthSum = 0, annualKey = null;
       Object.keys(branches[bName] || {}).forEach((p) => {
-        if (/(?:^|年)\d{1,2}月$/.test(p)) {
-          ytdGoal += branches[bName][p].monthlyGoal || 0;
-          monthSum += branches[bName][p].monthlyAchieved || 0;
-        }
-        if (/年度$/.test(p)) annualKey = p;
+        const n = monthOf(p);
+        if (n !== null) {
+          if (n >= lo && n <= hi) {
+            ytdGoal += branches[bName][p].monthlyGoal || 0;
+            monthSum += branches[bName][p].monthlyAchieved || 0;
+          }
+        } else if (/\u5E74\u5EA6$/.test(p)) annualKey = p;
       });
       const annualVal = annualKey ? branches[bName][annualKey].monthlyAchieved || 0 : 0;
-      const ytdAchieved = annualVal || monthSum;
+      const ytdAchieved = isFullRange ? (annualVal || monthSum) : monthSum;
       return { bName, ytdGoal, ytdAchieved, gap: ytdAchieved - ytdGoal, rate: ytdGoal ? ytdAchieved / ytdGoal * 100 : 0 };
     });
     const totalGoal = ytdData.reduce((acc, curr) => acc + curr.ytdGoal, 0);
@@ -95034,13 +95057,13 @@ This typically indicates that your device does not have a healthy Internet conne
       if (exportRef.current && import_html2canvas.default) {
         const canvas = await (0, import_html2canvas.default)(exportRef.current, { scale: 2, backgroundColor: "#ffffff", useCORS: true });
         const link = document.createElement("a");
-        link.download = `\u5E74\u5EA6\u7D2F\u7A4D\u71DF\u6536\u8207\u7F3A\u53E3\u5206\u6790_${(/* @__PURE__ */ new Date()).toISOString().slice(0, 10)}.png`;
+        link.download = `\u5404\u5E97\u7D2F\u7A4D\u71DF\u6536\u8207\u7F3A\u53E3\u5206\u6790_${rangeLabel}_${(/* @__PURE__ */ new Date()).toISOString().slice(0, 10)}.png`;
         link.href = canvas.toDataURL("image/png", 1);
         link.click();
       }
     };
     const handleExportExcel = () => {
-      const excelData = [["\u5206\u5E97", "\u7D2F\u7A4D\u71DF\u6536\u76EE\u6A19", "\u7D2F\u7A4D\u5BE6\u969B\u71DF\u6536", "\u7F3A\u53E3/\u8D85\u6A19\u5DEE\u984D", "\u9054\u6210\u7387"]];
+      const excelData = [[`\u5206\u5E97 (\u7D2F\u7A4D\u5340\u9593 ${rangeLabel})`, "\u7D2F\u7A4D\u71DF\u6536\u76EE\u6A19", "\u7D2F\u7A4D\u5BE6\u969B\u71DF\u6536", "\u7F3A\u53E3/\u8D85\u6A19\u5DEE\u984D", "\u9054\u6210\u7387"]];
       ytdData.forEach((item) => excelData.push([item.bName, item.ytdGoal, item.ytdAchieved, item.gap, item.rate / 100]));
       excelData.push(["\u5168\u96C6\u5718\u7E3D\u8A08", totalGoal, totalAchieved, totalGap, totalRate / 100]);
       const ws = utils.aoa_to_sheet(excelData);
@@ -95052,15 +95075,15 @@ This typically indicates that your device does not have a healthy Internet conne
       ws["!cols"] = [{ wch: 20 }, { wch: 15 }, { wch: 15 }, { wch: 15 }, { wch: 12 }];
       const wb = utils.book_new();
       utils.book_append_sheet(wb, ws, "\u7D2F\u7A4D\u71DF\u6536\u8207\u7F3A\u53E3");
-      writeFileSync(wb, `\u5404\u5E97\u5E74\u5EA6\u7D2F\u7A4D\u71DF\u6536\u8207\u7F3A\u53E3\u5206\u6790_${(/* @__PURE__ */ new Date()).toISOString().slice(0, 10)}.xlsx`);
+      writeFileSync(wb, `\u5404\u5E97\u7D2F\u7A4D\u71DF\u6536\u8207\u7F3A\u53E3\u5206\u6790_${rangeLabel}_${(/* @__PURE__ */ new Date()).toISOString().slice(0, 10)}.xlsx`);
     };
-    return /* @__PURE__ */ import_react.default.createElement("div", { className: "bg-white rounded-xl shadow-sm border border-slate-200 mb-8 overflow-hidden", ref: exportRef }, /* @__PURE__ */ import_react.default.createElement("div", { className: "bg-slate-50 px-5 py-4 border-b border-slate-100 text-lg font-black text-slate-700 flex flex-wrap justify-between items-center gap-3" }, /* @__PURE__ */ import_react.default.createElement("div", { className: "flex items-center" }, /* @__PURE__ */ import_react.default.createElement(Icon, { icon: "BarChartHorizontal", className: "mr-2 text-orange-500", size: 22 }), " \u5404\u5E97\u5E74\u5EA6\u7D2F\u7A4D\u71DF\u6536\u8207\u7F3A\u53E3\u5206\u6790"), /* @__PURE__ */ import_react.default.createElement("div", { className: "flex space-x-3" }, /* @__PURE__ */ import_react.default.createElement("button", { onClick: handleExportExcel, className: "bg-white hover:bg-emerald-50 text-emerald-600 border border-emerald-200 px-3 py-1.5 rounded-lg text-sm font-bold flex items-center transition shadow-sm" }, /* @__PURE__ */ import_react.default.createElement(Icon, { icon: "FileSpreadsheet", size: 16, className: "mr-1.5" }), " \u532F\u51FA Excel"), /* @__PURE__ */ import_react.default.createElement("button", { onClick: handleExportChart, className: "bg-white hover:bg-orange-50 text-orange-600 border border-orange-200 px-3 py-1.5 rounded-lg text-sm font-bold flex items-center transition shadow-sm" }, /* @__PURE__ */ import_react.default.createElement(Icon, { icon: "Download", size: 16, className: "mr-1.5" }), " \u532F\u51FA\u5716\u8868"))), /* @__PURE__ */ import_react.default.createElement("div", { className: "p-6 md:p-8" }, ytdData.map((item) => {
+    return /* @__PURE__ */ import_react.default.createElement("div", { className: "bg-white rounded-xl shadow-sm border border-slate-200 mb-8 overflow-hidden", ref: exportRef }, /* @__PURE__ */ import_react.default.createElement("div", { className: "bg-slate-50 px-5 py-4 border-b border-slate-100 text-lg font-black text-slate-700 flex flex-wrap justify-between items-center gap-3" }, /* @__PURE__ */ import_react.default.createElement("div", { className: "flex items-center" }, /* @__PURE__ */ import_react.default.createElement(Icon, { icon: "BarChartHorizontal", className: "mr-2 text-orange-500", size: 22 }), ` \u5404\u5E97\u7D2F\u7A4D\u71DF\u6536\u8207\u7F3A\u53E3\u5206\u6790 (${rangeLabel})`), /* @__PURE__ */ import_react.default.createElement("div", { className: "flex space-x-3" }, /* @__PURE__ */ import_react.default.createElement("button", { onClick: handleExportExcel, className: "bg-white hover:bg-emerald-50 text-emerald-600 border border-emerald-200 px-3 py-1.5 rounded-lg text-sm font-bold flex items-center transition shadow-sm" }, /* @__PURE__ */ import_react.default.createElement(Icon, { icon: "FileSpreadsheet", size: 16, className: "mr-1.5" }), " \u532F\u51FA Excel"), /* @__PURE__ */ import_react.default.createElement("button", { onClick: handleExportChart, className: "bg-white hover:bg-orange-50 text-orange-600 border border-orange-200 px-3 py-1.5 rounded-lg text-sm font-bold flex items-center transition shadow-sm" }, /* @__PURE__ */ import_react.default.createElement(Icon, { icon: "Download", size: 16, className: "mr-1.5" }), " \u532F\u51FA\u5716\u8868"))), /* @__PURE__ */ h("div", { className: "px-5 py-3 bg-white border-b border-slate-100 flex flex-wrap items-center gap-2" }, /* @__PURE__ */ h("span", { className: "text-xs font-black text-slate-500 flex items-center mr-1" }, /* @__PURE__ */ h(Icon, { icon: "Clock", size: 13, className: "mr-1" }), "\u7D2F\u7A4D\u5340\u9593:"), /* @__PURE__ */ h("div", { className: "flex items-center bg-white border border-slate-300 rounded-lg px-2 py-1" }, /* @__PURE__ */ h("select", { value: lo, onChange: (e) => setRangeStart(parseInt(e.target.value, 10)), className: "bg-transparent font-bold text-sm outline-none cursor-pointer text-medical-800" }, months.map((m) => /* @__PURE__ */ h("option", { key: m, value: m }, m + "\u6708")))), /* @__PURE__ */ h("span", { className: "text-slate-400 font-black" }, "~"), /* @__PURE__ */ h("div", { className: "flex items-center bg-white border border-slate-300 rounded-lg px-2 py-1" }, /* @__PURE__ */ h("select", { value: hi, onChange: (e) => setRangeEnd(parseInt(e.target.value, 10)), className: "bg-transparent font-bold text-sm outline-none cursor-pointer text-medical-800" }, months.map((m) => /* @__PURE__ */ h("option", { key: m, value: m }, m + "\u6708")))), presets.map((p) => /* @__PURE__ */ h("button", { key: p.label, onClick: () => { setRangeStart(p.lo); setRangeEnd(p.hi); }, className: `ml-1 px-3 py-1 rounded-full text-sm font-bold border transition ${lo === p.lo && hi === p.hi ? "bg-amber-500 text-white border-amber-600 shadow-sm" : "bg-white text-slate-600 border-slate-300 hover:bg-amber-50"}` }, p.label)), /* @__PURE__ */ h("span", { className: "text-xs font-bold text-slate-400 ml-2" }, isFullRange ? "\u5168\u5340\u9593\uFF08\u8207\u5206\u5E97\u9801\u5E74\u5EA6\u6578\u5B57\u540C\u6E90\uFF09" : `${rangeLabel} \u5404\u6708\u7D2F\u8A08`)), /* @__PURE__ */ import_react.default.createElement("div", { className: "p-6 md:p-8" }, ytdData.map((item) => {
       const maxVal = Math.max(item.ytdGoal, item.ytdAchieved, 1);
       const targetPct = item.ytdGoal / maxVal * 100;
       const achievedPct = item.ytdAchieved / maxVal * 100;
       const isOver = item.ytdAchieved >= item.ytdGoal;
       return /* @__PURE__ */ import_react.default.createElement("div", { key: item.bName, className: "mb-8" }, /* @__PURE__ */ import_react.default.createElement("div", { className: "flex flex-col md:flex-row md:justify-between md:items-end mb-2" }, /* @__PURE__ */ import_react.default.createElement("div", { className: "font-black text-xl text-slate-800 mb-2 md:mb-0" }, item.bName), /* @__PURE__ */ import_react.default.createElement("div", { className: "text-right text-base" }, /* @__PURE__ */ import_react.default.createElement("span", { className: "text-slate-500 mr-4 inline-block" }, "\u7D2F\u7A4D\u76EE\u6A19: ", formatMoney(item.ytdGoal)), /* @__PURE__ */ import_react.default.createElement("span", { className: "text-medical-600 font-bold mr-4 inline-block" }, "\u7D2F\u7A4D\u71DF\u6536: ", formatMoney(item.ytdAchieved)), /* @__PURE__ */ import_react.default.createElement("span", { className: `font-black inline-block px-3 py-1 rounded-md ${item.gap < 0 ? "bg-red-50 text-red-600" : "bg-emerald-50 text-emerald-600"}` }, "\u7F3A\u53E3/\u8D85\u6A19: ", item.gap > 0 ? "+" : "", formatMoney(item.gap)))), /* @__PURE__ */ import_react.default.createElement("div", { className: "relative w-full mt-6 mb-2" }, /* @__PURE__ */ import_react.default.createElement("div", { className: "absolute top-[-24px] bottom-[-8px] z-20 pointer-events-none transition-all duration-1000", style: { left: 0, width: `${targetPct}%` } }, /* @__PURE__ */ import_react.default.createElement("div", { className: "absolute right-[-1.5px] top-0 bottom-0 border-r-[3px] border-dashed border-slate-800/60" }), /* @__PURE__ */ import_react.default.createElement("div", { className: "absolute right-[-1.5px] top-0 translate-x-1/2 text-[11px] text-slate-700 bg-white border border-slate-300 px-2 py-0.5 rounded-full shadow-sm font-bold whitespace-nowrap" }, "\u76EE\u6A19\u7DDA")), /* @__PURE__ */ import_react.default.createElement("div", { className: "relative w-full h-8 bg-slate-100 rounded-full overflow-hidden shadow-inner border border-slate-200 isolate" }, !isOver && /* @__PURE__ */ import_react.default.createElement("div", { className: "absolute top-0 bottom-0 z-0 bg-red-400/20 transition-all duration-1000", style: { left: `${achievedPct}%`, width: `${targetPct - achievedPct}%` } }, /* @__PURE__ */ import_react.default.createElement("div", { className: "absolute inset-0 opacity-20", style: { backgroundImage: "repeating-linear-gradient(45deg, transparent, transparent 10px, #ef4444 10px, #ef4444 20px)" } })), /* @__PURE__ */ import_react.default.createElement("div", { className: `absolute top-0 left-0 bottom-0 flex items-center justify-end pr-3 text-sm font-black text-white transition-all duration-1000 z-10 shadow-sm ${isOver ? "bg-emerald-500" : "bg-medical-500"}`, style: { width: `${achievedPct}%` } }, item.rate >= 8 ? formatPercent(item.rate / 100) : ""))));
-    }), /* @__PURE__ */ import_react.default.createElement("div", { className: "mt-10 pt-6 border-t-[3px] border-slate-200" }, /* @__PURE__ */ import_react.default.createElement("div", { className: "flex flex-col md:flex-row md:justify-between md:items-end mb-3" }, /* @__PURE__ */ import_react.default.createElement("div", { className: "font-black text-2xl text-slate-800 mb-2 md:mb-0 flex items-center" }, /* @__PURE__ */ import_react.default.createElement(Icon, { icon: "Target", className: "mr-2 text-medical-600", size: 24 }), " \u5168\u96C6\u5718\u5E74\u5EA6\u7D2F\u7A4D"), /* @__PURE__ */ import_react.default.createElement("div", { className: "text-right text-lg" }, /* @__PURE__ */ import_react.default.createElement("span", { className: "text-slate-500 mr-4 inline-block" }, "\u7E3D\u76EE\u6A19: ", formatMoney(totalGoal)), /* @__PURE__ */ import_react.default.createElement("span", { className: "text-medical-600 font-bold mr-4 inline-block" }, "\u7E3D\u71DF\u6536: ", formatMoney(totalAchieved)), /* @__PURE__ */ import_react.default.createElement("span", { className: `font-black inline-block px-4 py-1.5 rounded-lg ${totalGap < 0 ? "bg-red-100 text-red-700" : "bg-emerald-100 text-emerald-700"}` }, "\u7E3D\u5DEE\u984D: ", totalGap > 0 ? "+" : "", formatMoney(totalGap)))), (() => {
+    }), /* @__PURE__ */ import_react.default.createElement("div", { className: "mt-10 pt-6 border-t-[3px] border-slate-200" }, /* @__PURE__ */ import_react.default.createElement("div", { className: "flex flex-col md:flex-row md:justify-between md:items-end mb-3" }, /* @__PURE__ */ import_react.default.createElement("div", { className: "font-black text-2xl text-slate-800 mb-2 md:mb-0 flex items-center" }, /* @__PURE__ */ import_react.default.createElement(Icon, { icon: "Target", className: "mr-2 text-medical-600", size: 24 }), ` \u5168\u96C6\u5718\u7D2F\u7A4D (${rangeLabel})`), /* @__PURE__ */ import_react.default.createElement("div", { className: "text-right text-lg" }, /* @__PURE__ */ import_react.default.createElement("span", { className: "text-slate-500 mr-4 inline-block" }, "\u7E3D\u76EE\u6A19: ", formatMoney(totalGoal)), /* @__PURE__ */ import_react.default.createElement("span", { className: "text-medical-600 font-bold mr-4 inline-block" }, "\u7E3D\u71DF\u6536: ", formatMoney(totalAchieved)), /* @__PURE__ */ import_react.default.createElement("span", { className: `font-black inline-block px-4 py-1.5 rounded-lg ${totalGap < 0 ? "bg-red-100 text-red-700" : "bg-emerald-100 text-emerald-700"}` }, "\u7E3D\u5DEE\u984D: ", totalGap > 0 ? "+" : "", formatMoney(totalGap)))), (() => {
       const maxVal = Math.max(totalGoal, totalAchieved, 1);
       const tPct = totalGoal / maxVal * 100;
       const aPct = totalAchieved / maxVal * 100;
