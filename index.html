@@ -95024,9 +95024,17 @@ This typically indicates that your device does not have a healthy Internet conne
     const { branches, branchOrder } = parsedData.branchData;
     const bNames = branchOrder && branchOrder.length > 0 ? branchOrder : Object.keys(branches);
     const monthOf = (p) => { const m = String(p).match(/(?:^|\u5E74)(\d{1,2})\u6708$/); return m ? parseInt(m[1], 10) : null; };
-    const monthSet = {};
-    bNames.forEach((b) => Object.keys(branches[b] || {}).forEach((p) => { const n = monthOf(p); if (n) monthSet[n] = true; }));
-    const months = Object.keys(monthSet).map(Number).sort((a, b) => a - b);
+    // 月份 → 期間鍵：以 parsedData.periods（現行檔案的期間清單）為唯一權威來源，
+    // 每個月份只登記一個鍵。雲端合併可能在 branches 內殘留舊格式期間鍵
+    // （如「2026年1月」與「1月」並存），若直接掃描 branches 的全部鍵會重複累計，
+    // 造成累積目標/營收爆增（8月實際案例：目標被灌成 1-7月+1-8月 兩份）。
+    const monthKeyMap = {};
+    const registerPeriod = (p) => { const n = monthOf(p); if (n !== null && !(n in monthKeyMap)) monthKeyMap[n] = p; };
+    const authoritative = parsedData.periods && parsedData.periods.length ? parsedData.periods : null;
+    if (authoritative) authoritative.forEach(registerPeriod);
+    else bNames.forEach((b) => Object.keys(branches[b] || {}).forEach(registerPeriod));
+    const annualPeriod = (authoritative || []).find((p) => /\u5E74\u5EA6$/.test(p)) || null;
+    const months = Object.keys(monthKeyMap).map(Number).sort((a, b) => a - b);
     if (!months.length) return null;
     const firstM = months[0], lastM = months[months.length - 1];
     const sM = months.indexOf(rangeStart) >= 0 ? rangeStart : firstM;
@@ -95035,17 +95043,17 @@ This typically indicates that your device does not have a healthy Internet conne
     const isFullRange = lo === firstM && hi === lastM;
     const rangeLabel = lo === hi ? `${lo}\u6708` : `${lo}-${hi}\u6708`;
     const ytdData = bNames.map((bName) => {
-      let ytdGoal = 0, monthSum = 0, annualKey = null;
-      Object.keys(branches[bName] || {}).forEach((p) => {
-        const n = monthOf(p);
-        if (n !== null) {
-          if (n >= lo && n <= hi) {
-            ytdGoal += branches[bName][p].monthlyGoal || 0;
-            monthSum += branches[bName][p].monthlyAchieved || 0;
-          }
-        } else if (/\u5E74\u5EA6$/.test(p)) annualKey = p;
+      const bmap = branches[bName] || {};
+      let ytdGoal = 0, monthSum = 0;
+      months.forEach((n) => {
+        if (n < lo || n > hi) return;
+        const key = bmap[monthKeyMap[n]] !== void 0 ? monthKeyMap[n] : Object.keys(bmap).find((p) => monthOf(p) === n);
+        if (!key || !bmap[key]) return;
+        ytdGoal += bmap[key].monthlyGoal || 0;
+        monthSum += bmap[key].monthlyAchieved || 0;
       });
-      const annualVal = annualKey ? branches[bName][annualKey].monthlyAchieved || 0 : 0;
+      const annualKey = annualPeriod && bmap[annualPeriod] ? annualPeriod : Object.keys(bmap).find((p) => /\u5E74\u5EA6$/.test(p));
+      const annualVal = annualKey ? bmap[annualKey].monthlyAchieved || 0 : 0;
       const ytdAchieved = isFullRange ? (annualVal || monthSum) : monthSum;
       return { bName, ytdGoal, ytdAchieved, gap: ytdAchieved - ytdGoal, rate: ytdGoal ? ytdAchieved / ytdGoal * 100 : 0 };
     });
@@ -95882,7 +95890,7 @@ This typically indicates that your device does not have a healthy Internet conne
             if (user && fbDb) {
               setIsSaving(true);
               try {
-                await setDoc(getSaveRef(), JSON.parse(JSON.stringify(newData)), { merge: true });
+                await setDoc(getSaveRef(), JSON.parse(JSON.stringify(newData)), { mergeFields: ["branchData", "staffData", "periods"] });
               } catch (err) {
                 console.error(err);
                 alert("\u26A0\uFE0F \u71DF\u904B\u8868\u300C\u96F2\u7AEF\u5132\u5B58\u5931\u6557\u300D\uFF1A" + (err.message || err) + "\n\n\u8CC7\u6599\u5DF2\u4FDD\u5B58\u5728\u6B64\u88DD\u7F6E\uFF08\u672C\u6A5F\u5099\u63F4\uFF09\uFF1B\u5176\u4ED6\u88DD\u7F6E\u66AB\u6642\u770B\u4E0D\u5230\u6700\u65B0\u8CC7\u6599\u3002");
