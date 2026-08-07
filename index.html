@@ -94757,6 +94757,13 @@ This typically indicates that your device does not have a healthy Internet conne
       ADDITIVE_KEYS.forEach((k) => {
         stats[k] = Math.round(stats[k] || 0);
       });
+      // 人員層級加工：報表把保養品業績從舊客消費金額拆出，導致原始「舊客消費金額」偏低。
+      // 於系統內回算：舊客消費金額 = 總銷售業績 - 新客消費金額（含回被拆出的保養品等）。
+      // 僅在有總銷售業績時才覆蓋，避免無業績資料時算出負值或歸零。
+      const totalForOld = stats.totalSales || stats.monthlySales || 0;
+      if (totalForOld > 0) {
+        stats.oldAmount = Math.max(0, Math.round(totalForOld - (stats.newAmount || 0)));
+      }
       deriveRates(stats);
       staffData.push({ name: name4, code, role, branch: lastBranch, seniority, stats });
     }
