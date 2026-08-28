@@ -95787,9 +95787,11 @@ This typically indicates that your device does not have a healthy Internet conne
               }
             }
             if (data.aplusPrevRanks) {
-              setAplusPrevRanks(data.aplusPrevRanks);
+              // 只在本地尚無基準時才採用雲端基準，避免剛匯入產生的正確基準被 onSnapshot 回填的雲端值覆蓋
+              setAplusPrevRanks((cur) => cur && Object.keys(cur).length ? cur : data.aplusPrevRanks);
               try {
-                localStorage.setItem("megaia_aplus_prev_v1", JSON.stringify(data.aplusPrevRanks));
+                const existing = localStorage.getItem("megaia_aplus_prev_v1");
+                if (!existing) localStorage.setItem("megaia_aplus_prev_v1", JSON.stringify(data.aplusPrevRanks));
               } catch (e) {
               }
             } else if (!aplusRepairedRef.current) {
