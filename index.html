@@ -62,6 +62,8 @@ input[type=number] { -moz-appearance: textfield; }
 .sticky-header{position:sticky;top:0;z-index:20}
 .sticky-cell{position:sticky;z-index:10}
 .table-scroll{position:relative}
+
+.rank-num{margin-left:6px;display:inline-flex;align-items:center;padding:1px 7px;border-radius:9999px;font-size:11px;font-weight:800;color:#475569;background:#f1f5f9;border:1px solid #e2e8f0;vertical-align:middle;white-space:nowrap}
 </style>
 </head>
 <body>
@@ -94536,11 +94538,16 @@ This typically indicates that your device does not have a healthy Internet conne
       const order = pool.map((it2) => ({ ref: it2, v: it2.stats && it2.stats[metric] || 0 })).sort((a, b) => b.v - a.v);
       order.forEach((o, index) => {
         const item = o.ref;
-        if (index === 0) item.ranks[metric] = "top1";
-        else if (index === 1) item.ranks[metric] = "top2";
-        else if (index === 2) item.ranks[metric] = "top3";
-        if (bottomThreshold > 0 && index >= poolCount - bottomThreshold) {
-          if (!item.ranks[metric]) item.ranks[metric] = "bottom";
+        if (isDealRate) {
+          // 成交率：每位進區者都給實際名次（1..N）。前三名以金銀銅呈現，第4名之後顯示數字。
+          item.ranks[metric] = { place: index + 1, total: poolCount };
+        } else {
+          if (index === 0) item.ranks[metric] = "top1";
+          else if (index === 1) item.ranks[metric] = "top2";
+          else if (index === 2) item.ranks[metric] = "top3";
+          if (bottomThreshold > 0 && index >= poolCount - bottomThreshold) {
+            if (!item.ranks[metric]) item.ranks[metric] = "bottom";
+          }
         }
       });
     });
@@ -94909,6 +94916,12 @@ This typically indicates that your device does not have a healthy Internet conne
   };
   var RankIcon = ({ rank }) => {
     if (!rank) return null;
+    // 成交率排名：物件 { place, total } → 前三名金銀銅、第4名起顯示「第N名」
+    if (typeof rank === "object" && rank.place) {
+      const medals = { 1: "\u{1F947}", 2: "\u{1F948}", 3: "\u{1F949}" };
+      if (medals[rank.place]) return /* @__PURE__ */ import_react.default.createElement("span", { title: `\u7B2C${rank.place}\u540D`, className: "rank-icon" }, medals[rank.place]);
+      return /* @__PURE__ */ import_react.default.createElement("span", { title: `\u7B2C${rank.place}\u540D / \u5171${rank.total}\u4EBA`, className: "rank-num" }, `\u7B2C${rank.place}\u540D`);
+    }
     if (rank === "top1") return /* @__PURE__ */ import_react.default.createElement("span", { title: "\u7B2C1\u540D", className: "rank-icon" }, "\u{1F947}");
     if (rank === "top2") return /* @__PURE__ */ import_react.default.createElement("span", { title: "\u7B2C2\u540D", className: "rank-icon" }, "\u{1F948}");
     if (rank === "top3") return /* @__PURE__ */ import_react.default.createElement("span", { title: "\u7B2C3\u540D", className: "rank-icon" }, "\u{1F949}");
