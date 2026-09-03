@@ -94526,15 +94526,20 @@ This typically indicates that your device does not have a healthy Internet conne
   var calculateRankings = (items, bottomThreshold = 3) => {
     if (!items || items.length === 0) return items;
     const rankedItems = items.map((item) => ({ ...item, ranks: {} }));
-    const count = rankedItems.length;
+    // 成交率排名（新客/舊客）排除「不進區」名單：總新客 < 30 者不參與排名、也不給警示，
+    // 以免低樣本高成交率的人佔據名次、或被誤標倒數。其餘指標維持全體排名。
+    const DEALRATE_METRICS = ["newDealRate", "oldDealRate"];
     RANK_METRICS.forEach((metric) => {
-      const order = rankedItems.map((it2, idx) => ({ idx, v: it2.stats && it2.stats[metric] || 0 })).sort((a, b) => b.v - a.v);
+      const isDealRate = DEALRATE_METRICS.indexOf(metric) !== -1;
+      const pool = isDealRate ? rankedItems.filter((it2) => (it2.stats && it2.stats.newVisits || 0) >= 30) : rankedItems;
+      const poolCount = pool.length;
+      const order = pool.map((it2) => ({ ref: it2, v: it2.stats && it2.stats[metric] || 0 })).sort((a, b) => b.v - a.v);
       order.forEach((o, index) => {
-        const item = rankedItems[o.idx];
+        const item = o.ref;
         if (index === 0) item.ranks[metric] = "top1";
         else if (index === 1) item.ranks[metric] = "top2";
         else if (index === 2) item.ranks[metric] = "top3";
-        if (bottomThreshold > 0 && index >= count - bottomThreshold) {
+        if (bottomThreshold > 0 && index >= poolCount - bottomThreshold) {
           if (!item.ranks[metric]) item.ranks[metric] = "bottom";
         }
       });
