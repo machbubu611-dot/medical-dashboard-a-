@@ -95649,7 +95649,7 @@ This typically indicates that your device does not have a healthy Internet conne
         setSelectedBranches([...new Set(processed.list.map((i) => i.branch))]);
         setSelectedRoles([...new Set(processed.list.map((i) => i.role))]);
       }
-    }, [rawData]);
+    }, [rawData, oldDealMap]);
     const handleSort = (key) => {
       if (activeTab !== "main" || isBlindMode) return;
       setSortConfig({ key, direction: sortConfig.key === key && sortConfig.direction === "desc" ? "asc" : "desc" });
