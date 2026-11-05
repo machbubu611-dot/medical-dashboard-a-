@@ -95702,20 +95702,20 @@ This typically indicates that your device does not have a healthy Internet conne
     const exportExcel = () => {
       let excelData = [];
       if (isBlindMode) {
-        excelData = [["\u5340\u6BB5", "\u59D3\u540D", "\u5206\u9662", "\u8077\u7A31", "\u7E3D\u92B7\u552E\u696D\u7E3E", "\u7E3D\u65B0\u5BA2\u6578", "\u7E3D\u65B0\u5BA2\u6210\u4EA4\u6578", "\u5E74\u5EA6\u6210\u4EA4\u7387", "\u5E74\u5EA6\u65B0\u5BA2\u5747\u55AE", "\u7E3D\u7E8C\u8CFC\u4EBA\u6578", "\u5E74\u5EA6\u7E8C\u8CFC\u7387", "\u7E3D\u8F49\u4ECB\u4EBA\u6578", "\u5E74\u5EA6\u8F49\u4ECB\u7387"]];
+        excelData = [["\u5340\u6BB5", "\u59D3\u540D", "\u5206\u9662", "\u8077\u7A31", "\u7E3D\u92B7\u552E\u696D\u7E3E", "\u7E3D\u65B0\u5BA2\u6578", "\u7E3D\u65B0\u5BA2\u6210\u4EA4\u6578", "\u5E74\u5EA6\u6210\u4EA4\u7387", "\u5E74\u5EA6\u65B0\u5BA2\u5747\u55AE", "\u7E3D\u7E8C\u8CFC\u4EBA\u6578", "\u5E74\u5EA6\u7E8C\u8CFC\u7387", "\u7E3D\u8F49\u4ECB\u4EBA\u6578", "\u5E74\u5EA6\u8F49\u4ECB\u7387", "\u820A\u5BA2\u6210\u4EA4\u7387"]];
         finalDisplayData.forEach((item) => {
-          excelData.push([item.tierLabel, item.name, item.branch, item.role, item.myTotalSales || 0, item.newVisits, item.newDeals, item.myDealRate, item.myTicket, item.repurchaseCnt, item.myRepurchaseRate, item.referralCnt, item.myReferralRate]);
+          excelData.push([item.tierLabel, item.name, item.branch, item.role, item.myTotalSales || 0, item.newVisits, item.newDeals, item.myDealRate, item.myTicket, item.repurchaseCnt, item.myRepurchaseRate, item.referralCnt, item.myReferralRate, item.myOldDealRate]);
         });
       } else {
-        excelData = [["\u6392\u540D", "\u5340\u6BB5", "\u59D3\u540D", "\u5206\u9662", "\u8077\u7A31", "\u7E3D\u92B7\u552E\u696D\u7E3E", "\u7E3D\u65B0\u5BA2\u6578", "\u7E3D\u65B0\u5BA2\u6210\u4EA4\u6578", "\u5E74\u5EA6\u6210\u4EA4\u7387", "\u5E74\u5EA6\u65B0\u5BA2\u5747\u55AE", "\u7E3D\u7E8C\u8CFC\u4EBA\u6578", "\u5E74\u5EA6\u7E8C\u8CFC\u7387", "\u7E3D\u8F49\u4ECB\u4EBA\u6578", "\u5E74\u5EA6\u8F49\u4ECB\u7387", "\u65B0\u5BA2\u7559\u5B58\u7387", "A+\u5206\u6578"]];
+        excelData = [["\u6392\u540D", "\u5340\u6BB5", "\u59D3\u540D", "\u5206\u9662", "\u8077\u7A31", "\u7E3D\u92B7\u552E\u696D\u7E3E", "\u7E3D\u65B0\u5BA2\u6578", "\u7E3D\u65B0\u5BA2\u6210\u4EA4\u6578", "\u5E74\u5EA6\u6210\u4EA4\u7387", "\u5E74\u5EA6\u65B0\u5BA2\u5747\u55AE", "\u7E3D\u7E8C\u8CFC\u4EBA\u6578", "\u5E74\u5EA6\u7E8C\u8CFC\u7387", "\u7E3D\u8F49\u4ECB\u4EBA\u6578", "\u5E74\u5EA6\u8F49\u4ECB\u7387", "\u820A\u5BA2\u6210\u4EA4\u7387", "\u65B0\u5BA2\u7559\u5B58\u7387", "A+\u5206\u6578"]];
         finalDisplayData.forEach((item) => {
-          excelData.push([item.displayRank, item.tierLabel, item.name, item.branch, item.role, item.myTotalSales || 0, item.newVisits, item.newDeals, item.myDealRate, item.myTicket, item.repurchaseCnt, item.myRepurchaseRate, item.referralCnt, item.myReferralRate, item.retentionRate, item.score]);
+          excelData.push([item.displayRank, item.tierLabel, item.name, item.branch, item.role, item.myTotalSales || 0, item.newVisits, item.newDeals, item.myDealRate, item.myTicket, item.repurchaseCnt, item.myRepurchaseRate, item.referralCnt, item.myReferralRate, item.myOldDealRate, item.retentionRate, item.score]);
         });
       }
       const ws = utils.aoa_to_sheet(excelData);
       const range = utils.decode_range(ws["!ref"]);
       for (let R = range.s.r + 1; R <= range.e.r; ++R) {
-        const percentCols = isBlindMode ? [7, 10, 12] : [8, 11, 13];
+        const percentCols = isBlindMode ? [7, 10, 12, 13] : [8, 11, 13, 14];
         percentCols.forEach((c) => {
           const cellRef = utils.encode_cell({ c, r: R });
           if (ws[cellRef]) ws[cellRef].z = "0%";
