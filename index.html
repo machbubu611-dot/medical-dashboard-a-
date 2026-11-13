@@ -95180,6 +95180,7 @@ This typically indicates that your device does not have a healthy Internet conne
     })())));
   };
   var BIZ_METRICS = ["dealRate", "newAvgTicket", "repurchaseRate", "referralRate"];
+  var normBranch = (n) => String(n || "").replace(/\s+/g, "").replace(/\u5E97$/, "");
   var computeStaffBizRank = (staffArr, baseline) => {
     const result = {};
     const qualifying = (staffArr || []).filter((s) => s.aplusTier && s.aplusTier.key !== "none");
@@ -95806,7 +95807,7 @@ This typically indicates that your device does not have a healthy Internet conne
       const m = {};
       if (Array.isArray(aplusBranchRawData)) {
         aplusBranchRawData.forEach((row) => {
-          const name = String(row["\u5206\u9662"] || "").trim();
+          const name = normBranch(row["\u5206\u9662"]);
           if (!name) return;
           const newVisits = cleanNumber(row["\u7E3D\u65B0\u5BA2\u6578"]);
           const newDeals = cleanNumber(row["\u7E3D\u65B0\u5BA2\u6210\u4EA4\u6578"]);
@@ -95890,6 +95891,16 @@ This typically indicates that your device does not have a healthy Internet conne
           aplusIsRealRef.current = true;
         }
         if (embedded.aplusBranchRawData) setAplusBranchRawData(embedded.aplusBranchRawData);
+        else {
+          try {
+            const lab2 = localStorage.getItem("megaia_aplus_branch_v1");
+            if (lab2) {
+              const ab2 = JSON.parse(lab2);
+              if (Array.isArray(ab2) && ab2.length) setAplusBranchRawData(ab2);
+            }
+          } catch (e) {
+          }
+        }
         if (embedded.aplusPrevRanks) setAplusPrevRanks(embedded.aplusPrevRanks);
       } else {
         let localDash = null, localAplus = null, localAplusBranch = null;
@@ -95945,6 +95956,7 @@ This typically indicates that your device does not have a healthy Internet conne
     }, []);
     const mainRef = useRef(null);
     const aplusRepairedRef = useRef(false);
+    const aplusBranchRepairedRef = useRef(false);
     const [isCapturing, setIsCapturing] = useState(false);
     const capturePage = async () => {
       if (!mainRef.current || isCapturing) return;
@@ -96012,6 +96024,19 @@ This typically indicates that your device does not have a healthy Internet conne
                 localStorage.setItem("megaia_aplus_branch_v1", JSON.stringify(data.aplusBranchRawData));
               } catch (e) {
               }
+            } else if (!aplusBranchRepairedRef.current) {
+              aplusBranchRepairedRef.current = true;
+              try {
+                const lab3 = localStorage.getItem("megaia_aplus_branch_v1");
+                if (lab3) {
+                  const backupB = JSON.parse(lab3);
+                  if (Array.isArray(backupB) && backupB.length) {
+                    setAplusBranchRawData(backupB);
+                    setDoc(getSaveRef(), { aplusBranchRawData: backupB }, { merge: true }).catch((err) => console.error("A+ \u5206\u9662\u8CC7\u6599\u81EA\u52D5\u88DC\u5BEB\u5931\u6557:", err));
+                  }
+                }
+              } catch (e) {
+              }
             }
             if (data.aplusPrevRanks) {
               // 只在本地尚無基準時才採用雲端基準，避免剛匯入產生的正確基準被 onSnapshot 回填的雲端值覆蓋
@@ -96076,7 +96101,7 @@ This typically indicates that your device does not have a healthy Internet conne
           const tier = branchAplusTierMap[s.name];
           return { ...s, globalSalesRank: globalSalesRankMap[key], aplusTier: tier || null };
         });
-        const branchBizBaseline = branchMetricsMap[branch.branchName];
+        const branchBizBaseline = branchMetricsMap[normBranch(branch.branchName)];
         const branchBizRank = computeStaffBizRank(staffFinalPre, branchBizBaseline);
         const staffFinal = staffFinalPre.map((s) => ({ ...s, bizRankInfo: branchBizRank[s.name] || {} }));
         return { ...branch, staff: staffFinal, isGlobalRanking: false, isTotalOverview: false, isAplus: false };
@@ -96205,13 +96230,13 @@ This typically indicates that your device does not have a healthy Internet conne
             setAplusPrevRanks(prevSnapshot || null);
             aplusIsRealRef.current = true;
             setAplusRawData(dataStr);
-            setAplusBranchRawData(branchDataStr);
+            if (branchDataStr.length > 0) setAplusBranchRawData(branchDataStr);
             try {
               localStorage.setItem("megaia_aplus_v1", JSON.stringify(dataStr));
             } catch (e2) {
             }
             try {
-              localStorage.setItem("megaia_aplus_branch_v1", JSON.stringify(branchDataStr));
+              if (branchDataStr.length > 0) localStorage.setItem("megaia_aplus_branch_v1", JSON.stringify(branchDataStr));
             } catch (e2) {
             }
             try {
@@ -96224,8 +96249,8 @@ This typically indicates that your device does not have a healthy Internet conne
               setIsSaving(true);
               try {
                 const clean = JSON.parse(JSON.stringify(dataStr));
-                const cleanBranch = JSON.parse(JSON.stringify(branchDataStr));
-                const payload = { aplusRawData: clean, aplusBranchRawData: cleanBranch };
+                const payload = { aplusRawData: clean };
+                if (branchDataStr.length > 0) payload.aplusBranchRawData = JSON.parse(JSON.stringify(branchDataStr));
                 if (prevSnapshot) payload.aplusPrevRanks = JSON.parse(JSON.stringify(prevSnapshot));
                 await setDoc(getSaveRef(), payload, { merge: true });
               } catch (err) {
@@ -96272,7 +96297,7 @@ This typically indicates that your device does not have a healthy Internet conne
       branch.isTotalOverview && /* @__PURE__ */ import_react.default.createElement(Icon, { icon: "BarChart3", size: 14, className: "mr-1 inline-block" }),
       branch.isAplus && /* @__PURE__ */ import_react.default.createElement(Icon, { icon: "Award", size: 14, className: "mr-1 inline-block" }),
       branch.branchName
-    ))))), /* @__PURE__ */ import_react.default.createElement("main", { ref: mainRef, className: "container mx-auto px-4 py-4 max-w-[1600px]" }, activeBranch.isAplus ? /* @__PURE__ */ import_react.default.createElement(AplusBoard, { rawData: aplusRawData, prevRanks: aplusPrevRanks, oldDealMap: aplusOldDealMap, isBlindMode, onToggleBlindMode: () => openPasswordModal("blind") }) : !parsedData || !parsedData.staffData || parsedData.staffData.length === 0 ? /* @__PURE__ */ import_react.default.createElement("div", { className: "p-10 text-center text-slate-400 font-bold border-2 border-dashed border-slate-200 rounded-xl" }, "\u8ACB\u4E0A\u50B3\u60A8\u7684\u71DF\u904B\u8868\u6216\u5207\u63DB\u81F3 A+ \u699C\u55AE") : /* @__PURE__ */ import_react.default.createElement(import_react.default.Fragment, null, /* @__PURE__ */ import_react.default.createElement("div", { className: "mb-3 flex items-center justify-between border-b border-slate-200 pb-2" }, /* @__PURE__ */ import_react.default.createElement("div", { className: "flex items-baseline" }, /* @__PURE__ */ import_react.default.createElement("h2", { className: "text-3xl font-black text-slate-800 tracking-tight mr-3" }, activeBranch.branchName), /* @__PURE__ */ import_react.default.createElement("span", { className: "text-lg font-bold text-slate-400" }, activeBranch.isGlobalRanking ? `(${globalRankedStaff.length})` : "\u71DF\u904B\u7E3D\u89BD"))), activeBranch.isTotalOverview ? /* @__PURE__ */ import_react.default.createElement(import_react.default.Fragment, null, groupSummaryStats && /* @__PURE__ */ import_react.default.createElement(SummaryPanels, { stats: groupSummaryStats }), /* @__PURE__ */ BusinessMetricsPanel(overviewBusinessMetrics), /* @__PURE__ */ import_react.default.createElement(YtdGapChart, { parsedData }), /* @__PURE__ */ import_react.default.createElement(OverviewDataTable, { parsedData, availablePeriods })) : activeBranch.isGlobalRanking ? renderGlobalRanking() : /* @__PURE__ */ import_react.default.createElement(import_react.default.Fragment, null, /* @__PURE__ */ import_react.default.createElement(SummaryPanels, { stats: activeBranch.stats, ranks: activeBranch.ranks }), /* @__PURE__ */ BusinessMetricsPanel(branchMetricsMap[activeBranch.branchName], branchRankInfo[activeBranch.branchName]), /* @__PURE__ */ import_react.default.createElement("div", { className: "flex items-center mt-5 mb-3 pb-1 border-b border-slate-200" }, /* @__PURE__ */ import_react.default.createElement(Icon, { icon: "Users", size: 18, className: "mr-2 text-slate-500" }), /* @__PURE__ */ import_react.default.createElement("h3", { className: "text-lg font-black text-slate-700 tracking-tight" }, /年度/.test(selectedPeriod) ? "\u5E74\u5EA6" : selectedPeriod, "\u4EBA\u54E1\u7E3E\u6548")), /* @__PURE__ */ import_react.default.createElement("div", null, activeBranch.staff && activeBranch.staff.map((member, idx) => /* @__PURE__ */ import_react.default.createElement(StaffCard, { key: idx, staff: member, globalSalesRank: member.globalSalesRank, showBranch: false })))))), isPasswordModalOpen && /* @__PURE__ */ import_react.default.createElement("div", { className: "fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-[60] backdrop-blur-sm" }, /* @__PURE__ */ import_react.default.createElement("div", { className: "bg-white rounded-xl shadow-2xl p-6 w-full max-w-sm transform transition-all scale-100 border border-gray-200" }, !verifiedAction ? /* @__PURE__ */ import_react.default.createElement(import_react.default.Fragment, null, /* @__PURE__ */ import_react.default.createElement("h3", { className: "text-lg font-bold text-gray-800 mb-4 flex items-center" }, /* @__PURE__ */ import_react.default.createElement(Icon, { icon: "Lock", size: 20, className: "mr-2 text-medical-600" }), "\u7BA1\u7406\u54E1\u9A57\u8B49"), /* @__PURE__ */ import_react.default.createElement("p", { className: "text-sm text-gray-500 mb-4" }, targetAction === "blind" ? "\u8ACB\u8F38\u5165\u5206\u6BB5\u6A21\u5F0F\u5207\u63DB\u5BC6\u78BC\u3002" : "\u8ACB\u8F38\u5165\u5BC6\u78BC\u4EE5\u532F\u5165\u8CC7\u6599\u3002"), /* @__PURE__ */ import_react.default.createElement("form", { onSubmit: handlePasswordSubmit }, /* @__PURE__ */ import_react.default.createElement("input", { type: "password", autoFocus: true, value: passwordInput, onChange: (e) => {
+    ))))), /* @__PURE__ */ import_react.default.createElement("main", { ref: mainRef, className: "container mx-auto px-4 py-4 max-w-[1600px]" }, activeBranch.isAplus ? /* @__PURE__ */ import_react.default.createElement(AplusBoard, { rawData: aplusRawData, prevRanks: aplusPrevRanks, oldDealMap: aplusOldDealMap, isBlindMode, onToggleBlindMode: () => openPasswordModal("blind") }) : !parsedData || !parsedData.staffData || parsedData.staffData.length === 0 ? /* @__PURE__ */ import_react.default.createElement("div", { className: "p-10 text-center text-slate-400 font-bold border-2 border-dashed border-slate-200 rounded-xl" }, "\u8ACB\u4E0A\u50B3\u60A8\u7684\u71DF\u904B\u8868\u6216\u5207\u63DB\u81F3 A+ \u699C\u55AE") : /* @__PURE__ */ import_react.default.createElement(import_react.default.Fragment, null, /* @__PURE__ */ import_react.default.createElement("div", { className: "mb-3 flex items-center justify-between border-b border-slate-200 pb-2" }, /* @__PURE__ */ import_react.default.createElement("div", { className: "flex items-baseline" }, /* @__PURE__ */ import_react.default.createElement("h2", { className: "text-3xl font-black text-slate-800 tracking-tight mr-3" }, activeBranch.branchName), /* @__PURE__ */ import_react.default.createElement("span", { className: "text-lg font-bold text-slate-400" }, activeBranch.isGlobalRanking ? `(${globalRankedStaff.length})` : "\u71DF\u904B\u7E3D\u89BD"))), activeBranch.isTotalOverview ? /* @__PURE__ */ import_react.default.createElement(import_react.default.Fragment, null, groupSummaryStats && /* @__PURE__ */ import_react.default.createElement(SummaryPanels, { stats: groupSummaryStats }), /* @__PURE__ */ BusinessMetricsPanel(overviewBusinessMetrics), /* @__PURE__ */ import_react.default.createElement(YtdGapChart, { parsedData }), /* @__PURE__ */ import_react.default.createElement(OverviewDataTable, { parsedData, availablePeriods })) : activeBranch.isGlobalRanking ? renderGlobalRanking() : /* @__PURE__ */ import_react.default.createElement(import_react.default.Fragment, null, /* @__PURE__ */ import_react.default.createElement(SummaryPanels, { stats: activeBranch.stats, ranks: activeBranch.ranks }), /* @__PURE__ */ BusinessMetricsPanel(branchMetricsMap[normBranch(activeBranch.branchName)], branchRankInfo[normBranch(activeBranch.branchName)]), /* @__PURE__ */ import_react.default.createElement("div", { className: "flex items-center mt-5 mb-3 pb-1 border-b border-slate-200" }, /* @__PURE__ */ import_react.default.createElement(Icon, { icon: "Users", size: 18, className: "mr-2 text-slate-500" }), /* @__PURE__ */ import_react.default.createElement("h3", { className: "text-lg font-black text-slate-700 tracking-tight" }, /年度/.test(selectedPeriod) ? "\u5E74\u5EA6" : selectedPeriod, "\u4EBA\u54E1\u7E3E\u6548")), /* @__PURE__ */ import_react.default.createElement("div", null, activeBranch.staff && activeBranch.staff.map((member, idx) => /* @__PURE__ */ import_react.default.createElement(StaffCard, { key: idx, staff: member, globalSalesRank: member.globalSalesRank, showBranch: false })))))), isPasswordModalOpen && /* @__PURE__ */ import_react.default.createElement("div", { className: "fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-[60] backdrop-blur-sm" }, /* @__PURE__ */ import_react.default.createElement("div", { className: "bg-white rounded-xl shadow-2xl p-6 w-full max-w-sm transform transition-all scale-100 border border-gray-200" }, !verifiedAction ? /* @__PURE__ */ import_react.default.createElement(import_react.default.Fragment, null, /* @__PURE__ */ import_react.default.createElement("h3", { className: "text-lg font-bold text-gray-800 mb-4 flex items-center" }, /* @__PURE__ */ import_react.default.createElement(Icon, { icon: "Lock", size: 20, className: "mr-2 text-medical-600" }), "\u7BA1\u7406\u54E1\u9A57\u8B49"), /* @__PURE__ */ import_react.default.createElement("p", { className: "text-sm text-gray-500 mb-4" }, targetAction === "blind" ? "\u8ACB\u8F38\u5165\u5206\u6BB5\u6A21\u5F0F\u5207\u63DB\u5BC6\u78BC\u3002" : "\u8ACB\u8F38\u5165\u5BC6\u78BC\u4EE5\u532F\u5165\u8CC7\u6599\u3002"), /* @__PURE__ */ import_react.default.createElement("form", { onSubmit: handlePasswordSubmit }, /* @__PURE__ */ import_react.default.createElement("input", { type: "password", autoFocus: true, value: passwordInput, onChange: (e) => {
       setPasswordInput(e.target.value);
       setPasswordError(false);
     }, placeholder: "\u8ACB\u8F38\u5165\u5BC6\u78BC", className: `w-full border rounded-lg px-4 py-2 outline-none focus:ring-2 mb-2 ${passwordError ? "border-red-500 focus:ring-red-200" : "border-gray-300 focus:ring-medical-200"}` }), passwordError && /* @__PURE__ */ import_react.default.createElement("p", { className: "text-xs text-red-500 mb-2 font-bold flex items-center" }, /* @__PURE__ */ import_react.default.createElement(Icon, { icon: "AlertCircle", size: 12, className: "mr-1" }), "\u5BC6\u78BC\u932F\u8AA4\uFF0C\u8ACB\u91CD\u8A66\u3002"), /* @__PURE__ */ import_react.default.createElement("div", { className: "flex justify-end space-x-2 mt-4" }, /* @__PURE__ */ import_react.default.createElement("button", { type: "button", onClick: () => {
