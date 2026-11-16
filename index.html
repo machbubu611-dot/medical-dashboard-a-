@@ -95655,6 +95655,39 @@ This typically indicates that your device does not have a healthy Internet conne
         ws["!cols"] = header.map((h) => ({ wch: Math.max(10, String(h).length * 2 + 2) }));
         const wb = utils.book_new();
         utils.book_append_sheet(wb, ws, "\u4EBA\u54E1\u7E3E\u6548");
+        const people = rows.slice(2);
+        const nameIdx = header.indexOf("\u59D3\u540D");
+        const grpOf = [];
+        groups.forEach((g) => { for (let q = 0; q < g[1]; q++) grpOf.push(g[0]); });
+        const tRows = [["\u7FA4\u7D44", "\u6307\u6A19"].concat(people.map((p) => p[nameIdx]))];
+        const tPct = [];
+        header.forEach((h, c) => {
+          if (c === nameIdx) return;
+          const r = tRows.length;
+          tRows.push([grpOf[c], h].concat(people.map((p) => p[c])));
+          if (pctCols.indexOf(c) !== -1) tPct.push(r);
+        });
+        const tMerges = [];
+        let runStart = 1;
+        for (let r = 1; r <= tRows.length; r++) {
+          if (r === tRows.length || tRows[r][0] !== tRows[runStart][0]) {
+            if (r - 1 > runStart) {
+              tMerges.push({ s: { r: runStart, c: 0 }, e: { r: r - 1, c: 0 } });
+              for (let z = runStart + 1; z < r; z++) tRows[z][0] = "";
+            }
+            runStart = r;
+          }
+        }
+        const wsT = utils.aoa_to_sheet(tRows);
+        wsT["!merges"] = tMerges;
+        tPct.forEach((r) => {
+          for (let C = 2; C < 2 + people.length; C++) {
+            const cell = wsT[utils.encode_cell({ r, c: C })];
+            if (cell && typeof cell.v === "number") cell.z = "0.0%";
+          }
+        });
+        wsT["!cols"] = [{ wch: 14 }, { wch: 24 }].concat(people.map(() => ({ wch: 14 })));
+        utils.book_append_sheet(wb, wsT, "\u4EBA\u54E1\u7E3E\u6548(\u8F49\u7F6E)");
         const scope = onlyFiltered ? "\u7BE9\u9078\u7D50\u679C" : "\u5168\u90E8\u4EBA\u54E1";
         const fname = `\u696D\u52D9\u4EBA\u54E1\u7E3E\u6548_${scope}_${periodLabel || ""}.xlsx`;
         writeFileSync(wb, fname);
