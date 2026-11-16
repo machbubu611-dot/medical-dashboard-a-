@@ -95583,7 +95583,7 @@ This typically indicates that your device does not have a healthy Internet conne
     const header = ["\u7E3D\u6392\u540D", "\u59D3\u540D", "\u5206\u9662", "\u8077\u7A31", "\u5E74\u8CC7", "A+\u5206\u5340", "\u5E74\u5EA6\u7642\u7A0B\u92B7\u552E\u696D\u7E3E", "\u4FDD\u990A\u54C1\u696D\u7E3E", "\u7E3D\u92B7\u552E\u696D\u7E3E", "\u5E74\u5EA6\u958B\u5361\u696D\u7E3E", "\u5E74\u5EA6\u958B\u5361\u6BD4\u7387", "\u7E3D\u670D\u52D9\u4EBA\u6B21", "\u5230\u5E97\u4F86\u5BA2\u6578", "\u5230\u5E97\u6D88\u8CBB\u4EBA\u6578", "\u5E73\u5747\u6210\u4EA4\u7387", "\u7E3D\u5E73\u5747\u5BA2\u55AE", "\u5230\u5E97\u65B0\u5BA2\u6578", "\u65B0\u5BA2\u6210\u4EA4\u6578", "\u65B0\u5BA2\u6210\u4EA4\u7387", "\u65B0\u5BA2\u6D88\u8CBB\u91D1\u984D", "\u65B0\u5BA2\u5E73\u5747\u5BA2\u55AE", "\u5230\u5E97\u820A\u5BA2\u6578", "\u820A\u5BA2\u6210\u4EA4\u6578", "\u820A\u5BA2\u6210\u4EA4\u7387", "\u820A\u5BA2\u6D88\u8CBB\u91D1\u984D", "\u820A\u5BA2\u5E73\u5747\u5BA2\u55AE", "\u5E74\u5EA6\u6210\u4EA4\u7387", "\u5E74\u5EA6\u65B0\u5BA2\u5747\u55AE", "\u5E74\u5EA6\u7E8C\u8CFC\u7387", "\u5E74\u5EA6\u8F49\u4ECB\u7387"];
     const pctCols = [10, 14, 18, 23, 26, 28, 29];
     const BIZ_KEYS = ["dealRate", "newAvgTicket", "repurchaseRate", "referralRate"];
-    const RED = { font: { color: { rgb: "FFFF0000" } } };
+    const mkRed = () => ({ font: { color: { rgb: "FFFF0000" } } });
     const groupRow = [];
     groups.forEach((g) => { for (let q = 0; q < g[1]; q++) groupRow.push(q === 0 ? g[0] : ""); });
     const dash = (v) => (v === void 0 || v === null || isNaN(v)) ? "-" : v;
@@ -95605,6 +95605,13 @@ This typically indicates that your device does not have a healthy Internet conne
         a ? dash(a.dealRate) : "-", a ? dash(a.newAvgTicket) : "-", a ? dash(a.repurchaseRate) : "-", a ? dash(a.referralRate) : "-"
       ]);
     });
+    rows.slice(2).forEach((r) => {
+      for (let c = 0; c < r.length; c++) {
+        const v = r[c];
+        if (typeof v !== "number") continue;
+        r[c] = pctCols.indexOf(c) !== -1 ? Math.round(v * 1000) / 1000 : Math.round(v);
+      }
+    });
     const people = rows.slice(2);
     const legend = opts.legend || [];
     if (legend.length) { rows.push([]); legend.forEach((t) => rows.push([t])); }
@@ -95613,9 +95620,12 @@ This typically indicates that your device does not have a healthy Internet conne
     let c0 = 0;
     groups.forEach((g) => { if (g[1] > 1) ws["!merges"].push({ s: { r: 0, c: c0 }, e: { r: 0, c: c0 + g[1] - 1 } }); c0 += g[1]; });
     for (let R = 2; R < 2 + people.length; ++R) {
-      pctCols.forEach((C) => { const cell = ws[utils.encode_cell({ r: R, c: C })]; if (cell && typeof cell.v === "number") cell.z = "0.0%"; });
+      for (let C = 0; C < header.length; ++C) {
+        const cell = ws[utils.encode_cell({ r: R, c: C })];
+        if (cell && typeof cell.v === "number") cell.z = pctCols.indexOf(C) !== -1 ? "0.0%" : "0";
+      }
     }
-    redMarks.forEach((m) => { const cell = ws[utils.encode_cell({ r: 2 + m.p, c: m.c })]; if (cell) cell.s = RED; });
+    redMarks.forEach((m) => { const cell = ws[utils.encode_cell({ r: 2 + m.p, c: m.c })]; if (cell) cell.s = mkRed(); });
     ws["!cols"] = header.map((h) => ({ wch: Math.max(10, String(h).length * 2 + 2) }));
     const wb = utils.book_new();
     utils.book_append_sheet(wb, ws, "\u4EBA\u54E1\u7E3E\u6548");
@@ -95646,13 +95656,15 @@ This typically indicates that your device does not have a healthy Internet conne
     if (legend.length) { tRows.push([]); legend.forEach((t) => tRows.push([t])); }
     const wsT = utils.aoa_to_sheet(tRows);
     wsT["!merges"] = tMerges;
-    tPct.forEach((r) => {
+    header.forEach((h, c) => {
+      if (c === nameIdx) return;
+      const r = tRowOfCol[c];
       for (let C = 2; C < 2 + people.length; C++) {
         const cell = wsT[utils.encode_cell({ r, c: C })];
-        if (cell && typeof cell.v === "number") cell.z = "0.0%";
+        if (cell && typeof cell.v === "number") cell.z = pctCols.indexOf(c) !== -1 ? "0.0%" : "0";
       }
     });
-    redMarks.forEach((m) => { const cell = wsT[utils.encode_cell({ r: tRowOfCol[m.c], c: 2 + m.p })]; if (cell) cell.s = RED; });
+    redMarks.forEach((m) => { const cell = wsT[utils.encode_cell({ r: tRowOfCol[m.c], c: 2 + m.p })]; if (cell) cell.s = mkRed(); });
     wsT["!cols"] = [{ wch: 14 }, { wch: 24 }].concat(people.map(() => ({ wch: 14 })));
     utils.book_append_sheet(wb, wsT, "\u4EBA\u54E1\u7E3E\u6548(\u8F49\u7F6E)");
     return wb;
@@ -96365,10 +96377,11 @@ This typically indicates that your device does not have a healthy Internet conne
         const lib = typeof window !== "undefined" && window.XLSXStyle ? window.XLSXStyle : null;
         const bName = branch.branchName;
         const base = branchMetricsMap[normBranch(bName)] || null;
+        const fmtPct1 = (v) => (v === void 0 || v === null || isNaN(v)) ? "-" : (Math.round(v * 1000) / 10).toFixed(1) + "%";
         const list = (branch.staff || []).map((s) => ({ ...s, aplusTierLabel: s.aplusTier ? s.aplusTier.label : NOT_ON_BOARD }));
         const legend = base ? [
           "\u8A3B\uFF1A\u7D05\u5B57\u8868\u793A\u4F4E\u65BC\u672C\u5E97\uFF08" + bName + "\uFF09\u6574\u9AD4\u6307\u6A19",
-          "\u672C\u5E97\u6574\u9AD4\u6307\u6A19\uFF1A\u5E74\u5EA6\u6210\u4EA4\u7387 " + formatPercent(base.dealRate) + "\uFF5C\u5E74\u5EA6\u65B0\u5BA2\u5747\u55AE " + formatMoney(base.newAvgTicket) + "\uFF5C\u5E74\u5EA6\u7E8C\u8CFC\u7387 " + formatPercent(base.repurchaseRate) + "\uFF5C\u5E74\u5EA6\u8F49\u4ECB\u7387 " + formatPercent(base.referralRate)
+          "\u672C\u5E97\u6574\u9AD4\u6307\u6A19\uFF1A\u5E74\u5EA6\u6210\u4EA4\u7387 " + fmtPct1(base.dealRate) + "\uFF5C\u5E74\u5EA6\u65B0\u5BA2\u5747\u55AE " + formatMoney(base.newAvgTicket) + "\uFF5C\u5E74\u5EA6\u7E8C\u8CFC\u7387 " + fmtPct1(base.repurchaseRate) + "\uFF5C\u5E74\u5EA6\u8F49\u4ECB\u7387 " + fmtPct1(base.referralRate)
         ] : ["\u8A3B\uFF1A\u5C1A\u672A\u532F\u5165 A+ \u6A94\u6848\u7684\u5206\u9662\u8868\u73FE\u5206\u9801\uFF0C\u7121\u672C\u5E97\u6574\u9AD4\u6307\u6A19\u53EF\u6BD4\u8F03\uFF0C\u672A\u6A19\u793A\u7D05\u5B57"];
         const wb = buildStaffWorkbook(lib || { utils }, list, { markRed: !!lib, legend });
         const fname = `${bName}_\u4EBA\u54E1\u7E3E\u6548_${selectedPeriod}.xlsx`;
